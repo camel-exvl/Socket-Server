@@ -1,7 +1,8 @@
 ### C++ template
 .idea/
 cmake-build-debug/
-Lab5-基于Socket接口实现自定义协议通信-2023.doc
+*.doc
+TestClient/
 # Prerequisites
 *.d
 
