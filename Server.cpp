@@ -3,6 +3,7 @@
 #include <vector>
 #include <stdexcept>
 #include <csignal>
+#include <ctime>
 
 #define SERVER_PORT 3722 //侦听端口
 
@@ -15,6 +16,11 @@
 enum class ConnectStatus {
 	DISCONNECTED, CONNECTED
 };
+
+typedef struct {
+	int len;
+	char *data;
+} Packet;
 
 typedef struct {
 	int index;
@@ -36,7 +42,7 @@ public:
 			createSocket();
 			bindSocket();
 			listenSocket();
-			printf("Waiting for client connecting!\n");
+			printf("Waiting for client connecting...\n");
 			acceptSocket();
 		} catch (std::exception &e) {
 			printf("%s\n", e.what());
@@ -44,7 +50,7 @@ public:
 	}
 
 	~Server() {
-		printf("Server is shutting down!\n");
+		printf("Server is shutting down.\n");
 		closesocket(sListen);//关闭套接字
 		WSACleanup();
 	}
@@ -55,12 +61,12 @@ public:
 		WSADATA wsaData;
 		int ret = WSAStartup(wVersionRequested, &wsaData);
 		if (ret != 0) {
-			throw std::runtime_error("WSAStartup() failed!");
+			throw std::runtime_error("WSAStartup() failed.");
 		}
 		//确认WinSock DLL支持版本2.2：
 		if (LOBYTE(wsaData.wVersion) != 2 || HIBYTE(wsaData.wVersion) != 2) {
 			WSACleanup();
-			throw std::runtime_error("Invalid Winsock version!");
+			throw std::runtime_error("Invalid Winsock version.");
 		}
 	}
 
@@ -69,7 +75,7 @@ public:
 		sListen = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 		if (sListen == INVALID_SOCKET) {
 			WSACleanup();
-			throw std::runtime_error("socket() failed!");
+			throw std::runtime_error("socket() failed.");
 		}
 	}
 
@@ -85,7 +91,7 @@ public:
 		if (ret == SOCKET_ERROR) {
 			closesocket(sListen);//关闭套接字
 			WSACleanup();
-			throw std::runtime_error("bind() failed! code:" + std::to_string(WSAGetLastError()));
+			throw std::runtime_error("bind() failed, code:" + std::to_string(WSAGetLastError()));
 		}
 	}
 
@@ -95,7 +101,7 @@ public:
 		if (ret == SOCKET_ERROR) {
 			closesocket(sListen);//关闭套接字
 			WSACleanup();
-			throw std::runtime_error("listen() failed! code:" + std::to_string(WSAGetLastError()));
+			throw std::runtime_error("listen() failed, code:" + std::to_string(WSAGetLastError()));
 		}
 	}
 
@@ -120,7 +126,7 @@ public:
 					       ntohs(saClient.sin_port)});
 			auto ret = CreateThread(nullptr, 0, connectThread, (LPVOID) &clients.back(), 0, nullptr);
 			if (ret == nullptr) {
-				throw std::runtime_error("CreateThread() " + std::to_string(clients.size() - 1) + " failed! code:" +
+				throw std::runtime_error("CreateThread() " + std::to_string(clients.size() - 1) + " failed, code:" +
 				                         std::to_string(WSAGetLastError()));
 			}
 		}
@@ -129,46 +135,94 @@ public:
 	static DWORD WINAPI connectThread(LPVOID lpParam) {
 		auto curClient = (Client *) lpParam;
 		auto sServer = curClient->socket;
-		int ret;
-		printf("Thread %d started!\n", curClient->index);
+		printf("Thread %d started.\n", curClient->index);
 
 		// send hello
-		std::string hello = "Hello from server!";
-		ret = send(sServer, hello.c_str(), hello.length(), 0);
+		char helloString[] = "Hello from server!\0";
+		Packet hello{0, helloString};
+		hello.len = strlen(helloString);
+		int ret = send(sServer, hello.data, hello.len, 0);
 		if (ret == SOCKET_ERROR) {
-			throw std::runtime_error("send() failed!" + std::to_string(WSAGetLastError()));
+			throw std::runtime_error("send() failed, code:" + std::to_string(WSAGetLastError()));
 		}
-		printf("Hello sent!\n");
+		printf("Thread %d: Hello sent.\n", curClient->index);
 
+		// receive
+		char buffer[1024];
+		while (isRunning) {
+			// receive length
+			int nLeft = sizeof(int);
+			char *ptr = buffer;
+			while (nLeft > 0) {
+				ret = recv(sServer, ptr, nLeft, 0);
+				if (ret == SOCKET_ERROR && WSAGetLastError() != WSAEWOULDBLOCK) {
+					printf("Thread %d: recv() failed, code:%d\n", curClient->index, WSAGetLastError());
+					break;
+				}
+				if (ret == 0) {
+					printf("Thread %d: client has closed the connection.\n", curClient->index);
+					break;
+				}
+				nLeft -= ret;
+				ptr += ret;
+			}
+			if (ret == 0) {
+				break;
+			}
+			int len = *(int *) buffer;
 
-//	struct student stu{};
-//	char *ptr;
+			// receive data
+			nLeft = len;
+			ptr = buffer;
+			while (nLeft > 0) {
+				ret = recv(sServer, buffer, len, 0);
+				if (ret == SOCKET_ERROR && WSAGetLastError() != WSAEWOULDBLOCK) {
+					printf("Thread %d: recv() failed, code:%d\n", curClient->index, WSAGetLastError());
+					break;
+				}
+				if (ret == 0) {
+					printf("Thread %d: client has closed the connection.\n", curClient->index);
+					break;
+				}
+				nLeft -= ret;
+				ptr += ret;
+			}
+			if (ret == 0) {
+				break;
+			}
+			buffer[len] = '\0';
 
-//	//按照预定协议，客户端将发来一个学生的信息：
-//	nLeft = sizeof(stu);
-//	ptr = (char *) &stu;
-//	while (nLeft > 0) {
-//		//接收数据：
-//		ret = recv(sServer, ptr, nLeft, 0);
-//		if (ret == SOCKET_ERROR) {
-//			printf("recv() failed!\n");
-//			break;
-//		}
-//
-//		if (ret == 0) //客户端已经关闭连接
-//		{
-//			printf("client has closed the connection!\n");
-//			break;
-//		}
-//		nLeft -= ret;
-//		ptr += ret;
-//	}
-//
-//	if (!nLeft) //已经接收到了所有数据
-//		printf("name: %s\nage:%d\n", stu.name, stu.age);
-
+			printf("Thread %d: received %d bytes: %s\n", curClient->index, len, buffer);
+			std::string s(buffer);
+			try {
+				handleDataInput(curClient, s);
+			} catch (std::exception &e) {
+				printf("%s\n", e.what());
+				break;
+			}
+		}
 		closesocket(sServer);
 		return 0;
+	}
+
+	static void handleDataInput(Client *&curClient, std::string &s) {
+		Packet packet{0, nullptr};  // the packet need to be sent
+		if (s == "date") {
+			time_t now = time(nullptr);
+			packet.data = ctime(&now);
+			packet.len = strlen(packet.data);
+		} else {
+			char unknownString[] = "Unknown command!\0";
+			packet.data = unknownString;
+			packet.len = strlen(unknownString);
+		}
+
+		int ret = send(curClient->socket, packet.data, packet.len, 0);
+		if (ret == SOCKET_ERROR) {
+			throw std::runtime_error("Thread " + std::to_string(curClient->index) + ": send() failed, code:" +
+			                         std::to_string(WSAGetLastError()));
+		}
+		printf("Thread %d: %d bytes sent.\n", curClient->index, ret);
 	}
 
 	static void signalHandler(int signum) {
