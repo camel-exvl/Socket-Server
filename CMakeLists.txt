@@ -4,8 +4,12 @@ project(Lab5)
 set(CMAKE_CXX_STANDARD 14)
 
 add_executable(Lab5
-        Server.cpp)
+        server.h
+        server.cpp
+        package.h
+        package.cpp
+)
 
-if(WIN32)
+if (WIN32)
     target_link_libraries(Lab5 wsock32 ws2_32)
-endif()
+endif ()
