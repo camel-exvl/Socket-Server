@@ -138,6 +138,7 @@ int Package::deserialize(std::vector<Client> *field, const char *&buffer, int le
 		ptr += sizeof(int);
 		memcpy(&client.status, ptr, sizeof(ConnectStatus));
 		ptr += sizeof(ConnectStatus);
+		client.socket = INVALID_SOCKET;
 		char addr[MAXBUFLEN];
 		const char *addrPtr = ptr;
 		PackageType type;

@@ -17,7 +17,7 @@ public:
 	void bindSocket() const;
 	void listenSocket() const;
 	void acceptSocket();
-	DWORD connectToClient(int index) noexcept;
+	void connectToClient(int index) noexcept;
 	void handleDataInput(int index, const char *input);
 	static void signalHandler(int signum) noexcept;
 private:

@@ -122,7 +122,7 @@ void Server::acceptSocket() {
 	}
 }
 
-DWORD WINAPI Server::connectToClient(int index) noexcept {
+void Server::connectToClient(int index) noexcept {
 	auto &curClient = clients[index];
 	auto &sServer = curClient.socket;
 	printf("Thread %d started.\n", curClient.index);
@@ -135,7 +135,7 @@ DWORD WINAPI Server::connectToClient(int index) noexcept {
 		printf("Thread %d: send() failed, code:%d\n", index, WSAGetLastError());
 		clients[index].status = ConnectStatus::DISCONNECTED;
 		closesocket(sServer);
-		return 0;
+		return;
 	}
 	printf("Thread %d: hello sent.\n", index);
 
@@ -198,7 +198,7 @@ DWORD WINAPI Server::connectToClient(int index) noexcept {
 	clients[index].status = ConnectStatus::DISCONNECTED;
 	closesocket(sServer);
 	printf("Thread %d: connection closed.\n", index);
-	return 0;
+	return;
 }
 
 void Server::handleDataInput(int index, const char *input) {
