@@ -166,7 +166,7 @@ void Server::connectToClient(int index) noexcept {
 		int len = *(int *) buffer;
 
 		// receive data
-		nLeft = len;
+		nLeft = len - sizeof(int);
 		ptr = buffer + sizeof(int);
 		while (nLeft > 0) {
 			ret = recv(sServer, ptr, nLeft, 0);

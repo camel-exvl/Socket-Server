@@ -20,7 +20,7 @@ enum class PackageType {    // 数据包类型
 typedef struct {
 	int index;
 	ConnectStatus status;
-	SOCKET socket;
+	SOCKET socket;  // 不参与序列化与反序列化，不进行传输
 	std::string addr;
 	int port;
 } Client;   // 客户端信息
@@ -52,7 +52,7 @@ public:
 private:
 	// time_t
 	static int serialize(const time_t &field, char *buffer, int maxLen);
-	static int deserialize(time_t *field, const char *&buffer, int len) noexcept;
+	static int deserialize(time_t *field, const char *&buffer, int len);
 	// char *
 	static int serialize(const char *field, char *buffer, int maxLen);
 	static int deserialize(char *field, const char *&buffer, int len) noexcept;

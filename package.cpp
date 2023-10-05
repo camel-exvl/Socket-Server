@@ -80,7 +80,10 @@ int Package::serialize(const time_t &field, char *buffer, int maxLen) {
 	return sizeof(PackageType);
 }
 
-int Package::deserialize(time_t *field, const char *&buffer, int len) noexcept {
+int Package::deserialize(time_t *field, const char *&buffer, int len) {
+	if (len != sizeof(time_t)) {
+		throw std::runtime_error("Time_t length not match.");
+	}
 	memcpy(field, buffer + sizeof(int), len);
 	return len;
 }
@@ -106,7 +109,8 @@ int Package::serialize(const std::vector<Client> &field, char *buffer, int maxLe
 	char *ptr = buffer;
 	for (auto client: field) {
 		int curLen =
-				sizeof(int) + sizeof(int) + sizeof(ConnectStatus) + sizeof(int) + client.addr.length() + sizeof(int);
+				sizeof(int) + sizeof(int) + sizeof(ConnectStatus) + sizeof(int) + sizeof(PackageType) +
+				client.addr.length() + sizeof(int); // curLen, index, status, addr(len + type + str), port
 		totalLen += curLen;
 		if (totalLen > maxLen) {
 			throw std::runtime_error("Buffer space not enough.");
@@ -156,7 +160,7 @@ int Package::deserialize(std::vector<Client> *field, const char *&buffer, int le
 		field->push_back(client);
 	}
 	if (totalLen < 0) {
-		throw std::runtime_error("Invalid buffer length");
+		throw std::runtime_error("Invalid input length.");
 	}
 	return len;
 }
