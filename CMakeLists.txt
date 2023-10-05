@@ -10,6 +10,9 @@ add_executable(Lab5
         package.cpp
 )
 
+add_executable(TestClient package.h package.cpp TestClient/TestClient.cpp)
+
 if (WIN32)
     target_link_libraries(Lab5 wsock32 ws2_32)
+    target_link_libraries(TestClient wsock32 ws2_32)
 endif ()

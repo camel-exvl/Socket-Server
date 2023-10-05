@@ -24,6 +24,8 @@ int Package::serialize(const PackageType &type, const void *field, char *buffer,
 				len += Package::serialize(*(ForwardRequest *) field, ptr, maxBufLen - len);
 				break;
 			}
+			default:
+				throw std::runtime_error("Invalid package type.");
 		}
 	} catch (std::exception &e) {
 		throw std::runtime_error(e.what());
@@ -84,7 +86,7 @@ int Package::deserialize(time_t *field, const char *&buffer, int len) {
 	if (len != sizeof(time_t)) {
 		throw std::runtime_error("Time_t length not match.");
 	}
-	memcpy(field, buffer + sizeof(int), len);
+	memcpy(field, buffer, len);
 	return len;
 }
 
@@ -99,7 +101,7 @@ int Package::serialize(const char *field, char *buffer, int maxLen) {
 
 int Package::deserialize(char *field, const char *&buffer, int len) noexcept {
 	field = new char[len + 1];
-	memcpy(field, buffer + sizeof(int), len);
+	memcpy(field, buffer, len);
 	field[len] = '\0';
 	return len;
 }
