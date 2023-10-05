@@ -27,6 +27,9 @@ typedef struct {
 
 typedef struct {
 	int to;
+	int from;
+	std::string sender_addr;
+	int sender_port;
 	char *data;
 } ForwardRequest;   // 转发请求包
 
@@ -58,7 +61,7 @@ private:
 	static int deserialize(std::vector<Client> *field, const char *&buffer, int len);
 	// ForwardRequest
 	static int serialize(const ForwardRequest &field, char *buffer, int maxLen);
-	static int deserialize(ForwardRequest *field, const char *&buffer, int len) noexcept;
+	static int deserialize(ForwardRequest *field, const char *&buffer, int len);
 };
 
 #endif //LAB5_PACKAGE_H

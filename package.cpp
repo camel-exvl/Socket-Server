@@ -42,30 +42,32 @@ int Package::deserialize(PackageType &type, void *field, const char *&buffer) no
 	const char *ptr = buffer + sizeof(int);
 	type = *(PackageType *) ptr;
 	ptr += sizeof(PackageType);
-	switch (type) {
-		case PackageType::TIME: {
-			Package::deserialize((time_t *) field, ptr, len);
-			break;
-		}
-		case PackageType::STRING: {
-			Package::deserialize((char *) field, ptr, len);
-			break;
-		}
-		case PackageType::CLIENTS: {
-			try {
+	try {
+		switch (type) {
+			case PackageType::TIME: {
+				Package::deserialize((time_t *) field, ptr, len);
+				break;
+			}
+			case PackageType::STRING: {
+				Package::deserialize((char *) field, ptr, len);
+				break;
+			}
+			case PackageType::CLIENTS: {
 				Package::deserialize((std::vector<Client> *) field, ptr, len);
+				break;
 			}
-			catch (std::exception &e) {
-				type = PackageType::INVALID;
-				field = (void *) e.what();
-				return -1;
+			case PackageType::FORWARD: {
+				Package::deserialize((ForwardRequest *) field, ptr, len);
+				break;
 			}
-			break;
+			default:
+				throw std::runtime_error("Invalid package type.");
 		}
-		case PackageType::FORWARD: {
-			Package::deserialize((ForwardRequest *) field, ptr, len);
-			break;
-		}
+	}
+	catch (std::exception &e) {
+		type = PackageType::INVALID;
+		field = (void *) e.what();
+		return -1;
 	}
 	return *(int *) buffer;
 }
@@ -115,7 +117,8 @@ int Package::serialize(const std::vector<Client> &field, char *buffer, int maxLe
 		ptr += sizeof(int);
 		memcpy(ptr, &client.status, sizeof(ConnectStatus));
 		ptr += sizeof(ConnectStatus);
-		int addrLen = Package::serialize(PackageType::STRING, client.addr.c_str(), ptr);
+		int addrLen = serialize(PackageType::STRING, client.addr.c_str(), ptr,
+		                        maxLen - totalLen + client.addr.length());
 		ptr += addrLen;
 		memcpy(ptr, &client.port, sizeof(int));
 		ptr += sizeof(int);
@@ -143,6 +146,9 @@ int Package::deserialize(std::vector<Client> *field, const char *&buffer, int le
 		const char *addrPtr = ptr;
 		PackageType type;
 		int addrLen = Package::deserialize(type, addr, addrPtr);
+		if (type == PackageType::INVALID) {
+			throw std::runtime_error("Invalid address.");
+		}
 		client.addr = addr;
 		ptr += addrLen;
 		memcpy(&client.port, ptr, sizeof(int));
@@ -158,17 +164,38 @@ int Package::deserialize(std::vector<Client> *field, const char *&buffer, int le
 int Package::serialize(const ForwardRequest &field, char *buffer, int maxLen) {
 	int len = sizeof(int);
 	memcpy(buffer, &field.to, sizeof(int));
+	memcpy(buffer + len, &field.from, sizeof(int));
+	len += sizeof(int);
 	try {
-		len += serialize(PackageType::STRING, field.data, buffer + sizeof(int), maxLen - sizeof(int));
+		int addrLen = serialize(PackageType::STRING, field.sender_addr.c_str(), buffer + len,
+		                        maxLen - len - sizeof(int));
+		len += addrLen;
+	} catch (std::exception &e) {
+		throw std::runtime_error(e.what());
+	}
+	memcpy(buffer + len, &field.sender_port, sizeof(int));
+	len += sizeof(int);
+	try {
+		len += serialize(PackageType::STRING, field.data, buffer + len, maxLen - len);
 	} catch (std::exception &e) {
 		throw std::runtime_error(e.what());
 	}
 	return len;
 }
 
-int Package::deserialize(ForwardRequest *field, const char *&buffer, int len) noexcept {
+int Package::deserialize(ForwardRequest *field, const char *&buffer, int len) {
 	memcpy(&field->to, buffer, sizeof(int));
 	const char *ptr = buffer + sizeof(int);
-	memcpy(field->data, ptr, len - sizeof(int));
+	memcpy(&field->from, ptr, sizeof(int));
+	ptr += sizeof(int);
+	PackageType type;
+	int addrLen = deserialize(type, (char *) field->sender_addr.c_str(), ptr);
+	if (type == PackageType::INVALID) {
+		throw std::runtime_error("Invalid address.");
+	}
+	ptr += addrLen;
+	memcpy(&field->sender_port, ptr, sizeof(int));
+	ptr += sizeof(int);
+	memcpy(field->data, ptr, len - (ptr - buffer));
 	return len;
 }

@@ -57,11 +57,16 @@ typedef struct {
 
 #### 转发请求包
 
-包含转发目标客户端索引和转发内容两种信息，其中转发内容为序列化后的数据包。
+包含转发目标客户端索引、发送者序号、地址、端口号和转发内容，其中转发内容为序列化后的数据包。
+
+发送者**无需**提供自己的地址和端口号，服务端会自动获取。
 
 ```cpp
 typedef struct {
 	int to;
+	int from;
+	std::string sender_addr;
+	int sender_port;
 	char *data;
 } ForwardRequest;
 ```

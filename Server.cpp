@@ -226,14 +226,17 @@ void Server::handleDataInput(int index, const char *input) {
 		}
 		case (PackageType::FORWARD): {
 			ForwardRequest request = *(ForwardRequest *) field;
+			request.from = index;
+			request.sender_addr = clients[index].addr;
+			request.sender_port = clients[index].port;
 			if (request.to >= clients.size()) {
 				len = Package::serialize(PackageType::STRING, "Invalid client index.\0", data);
 			} else if (clients[request.to].status != ConnectStatus::CONNECTED) {
 				len = Package::serialize(PackageType::STRING, "Client disconnected.\0", data);
 			} else {
-				int ret = send(clients[request.to].socket, request.data, strlen(request.data), 0);
+				int ret = send(clients[request.to].socket, input, strlen(input), 0);
 				if (ret == SOCKET_ERROR) {
-					std::string err = "Send to client " + std::to_string(request.to) + " failed. Code:" +
+					std::string err = "Send to client " + std::to_string(request.to) + " failed. Reason:" +
 					                  std::to_string(WSAGetLastError());
 					len = Package::serialize(PackageType::STRING, err.c_str(), data);
 				} else {
