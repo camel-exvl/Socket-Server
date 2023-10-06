@@ -34,7 +34,7 @@ int Package::serialize(const PackageType &type, const void *field, char *buffer,
 	return len;
 }
 
-int Package::deserialize(PackageType &type, void *field, const char *&buffer) noexcept {
+int Package::deserialize(PackageType &type, void *&field, const char *&buffer) noexcept {
 	int len = *(int *) buffer - sizeof(int) - sizeof(PackageType);
 	if (len <= 0) {
 		type = PackageType::INVALID;
@@ -47,19 +47,27 @@ int Package::deserialize(PackageType &type, void *field, const char *&buffer) no
 	try {
 		switch (type) {
 			case PackageType::TIME: {
-				Package::deserialize((time_t *) field, ptr, len);
+				auto *t = new time_t;
+				Package::deserialize(t, ptr, len);
+				field = (void *) t;
 				break;
 			}
 			case PackageType::STRING: {
-				Package::deserialize((char *) field, ptr, len);
+				auto *str = new char[len + 1];
+				Package::deserialize(str, ptr, len);
+				field = (void *) str;
 				break;
 			}
 			case PackageType::CLIENTS: {
-				Package::deserialize((std::vector<Client> *) field, ptr, len);
+				auto *clients = new std::vector<Client>;
+				Package::deserialize(clients, ptr, len);
+				field = (void *) clients;
 				break;
 			}
 			case PackageType::FORWARD: {
-				Package::deserialize((ForwardRequest *) field, ptr, len);
+				auto *request = new ForwardRequest;
+				Package::deserialize(request, ptr, len);
+				field = (void *) request;
 				break;
 			}
 			default:
@@ -82,7 +90,7 @@ int Package::serialize(const time_t &field, char *buffer, int maxLen) {
 	return sizeof(PackageType);
 }
 
-int Package::deserialize(time_t *field, const char *&buffer, int len) {
+int Package::deserialize(time_t *&field, const char *&buffer, int len) {
 	if (len != sizeof(time_t)) {
 		throw std::runtime_error("Time_t length not match.");
 	}
@@ -99,7 +107,7 @@ int Package::serialize(const char *field, char *buffer, int maxLen) {
 	return len;
 }
 
-int Package::deserialize(char *field, const char *&buffer, int len) noexcept {
+int Package::deserialize(char *&field, const char *&buffer, int len) noexcept {
 	field = new char[len + 1];
 	memcpy(field, buffer, len);
 	field[len] = '\0';
@@ -132,7 +140,7 @@ int Package::serialize(const std::vector<Client> &field, char *buffer, int maxLe
 	return totalLen;
 }
 
-int Package::deserialize(std::vector<Client> *field, const char *&buffer, int len) {
+int Package::deserialize(std::vector<Client> *&field, const char *&buffer, int len) {
 	int totalLen = len;
 	const char *ptr = buffer;
 	while (totalLen > 0) {
@@ -148,14 +156,14 @@ int Package::deserialize(std::vector<Client> *field, const char *&buffer, int le
 		memcpy(&client.status, ptr, sizeof(ConnectStatus));
 		ptr += sizeof(ConnectStatus);
 		client.socket = INVALID_SOCKET;
-		char addr[MAXBUFLEN];
+		void *addr;
 		const char *addrPtr = ptr;
 		PackageType type;
 		int addrLen = Package::deserialize(type, addr, addrPtr);
 		if (type == PackageType::INVALID) {
 			throw std::runtime_error("Invalid address.");
 		}
-		client.addr = addr;
+		client.addr = (char *) addr;
 		ptr += addrLen;
 		memcpy(&client.port, ptr, sizeof(int));
 		ptr += sizeof(int);
@@ -189,16 +197,18 @@ int Package::serialize(const ForwardRequest &field, char *buffer, int maxLen) {
 	return len;
 }
 
-int Package::deserialize(ForwardRequest *field, const char *&buffer, int len) {
+int Package::deserialize(ForwardRequest *&field, const char *&buffer, int len) {
 	memcpy(&field->to, buffer, sizeof(int));
 	const char *ptr = buffer + sizeof(int);
 	memcpy(&field->from, ptr, sizeof(int));
 	ptr += sizeof(int);
+	void *addr;
 	PackageType type;
-	int addrLen = deserialize(type, (char *) field->sender_addr.c_str(), ptr);
+	int addrLen = deserialize(type, addr, ptr);
 	if (type == PackageType::INVALID) {
 		throw std::runtime_error("Invalid address.");
 	}
+	field->sender_addr = (char *) addr;
 	ptr += addrLen;
 	memcpy(&field->sender_port, ptr, sizeof(int));
 	ptr += sizeof(int);

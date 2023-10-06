@@ -47,21 +47,21 @@ public:
 	// [out] field: field to deserialize
 	// [in] buffer: buffer to deserialize
 	// return the length of read data
-	static int deserialize(PackageType &type, void *field, const char *&buffer) noexcept;
+	static int deserialize(PackageType &type, void *&field, const char *&buffer) noexcept;
 
 private:
 	// time_t
 	static int serialize(const time_t &field, char *buffer, int maxLen);
-	static int deserialize(time_t *field, const char *&buffer, int len);
+	static int deserialize(time_t *&field, const char *&buffer, int len);
 	// char *
 	static int serialize(const char *field, char *buffer, int maxLen);
-	static int deserialize(char *field, const char *&buffer, int len) noexcept;
+	static int deserialize(char *&field, const char *&buffer, int len) noexcept;
 	// vector<Client>
 	static int serialize(const std::vector<Client> &field, char *buffer, int maxLen);
-	static int deserialize(std::vector<Client> *field, const char *&buffer, int len);
+	static int deserialize(std::vector<Client> *&field, const char *&buffer, int len);
 	// ForwardRequest
 	static int serialize(const ForwardRequest &field, char *buffer, int maxLen);
-	static int deserialize(ForwardRequest *field, const char *&buffer, int len);
+	static int deserialize(ForwardRequest *&field, const char *&buffer, int len);
 };
 
 #endif //LAB5_PACKAGE_H
