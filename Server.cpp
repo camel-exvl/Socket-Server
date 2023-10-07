@@ -123,7 +123,7 @@ void Server::acceptSocket() {
 }
 
 void Server::connectToClient(int index) noexcept {
-	auto &curClient = clients[index];
+	auto curClient = clients[index];
 	auto &sServer = curClient.socket;
 	printf("Thread %d started.\n", curClient.index);
 
@@ -152,13 +152,13 @@ void Server::connectToClient(int index) noexcept {
 				printf("Thread %d: recv() failed, code:%d\n", index, WSAGetLastError());
 				error = true;
 				break;
-			}
-			if (ret == 0) {
+			} else if (ret == 0) {
 				printf("Thread %d: client has closed the connection.\n", index);
 				break;
+			} else if (ret != SOCKET_ERROR) {
+				nLeft -= ret;
+				ptr += ret;
 			}
-			nLeft -= ret;
-			ptr += ret;
 		}
 		if (ret == 0 || error) {
 			break;
@@ -174,20 +174,19 @@ void Server::connectToClient(int index) noexcept {
 				printf("Thread %d: recv() failed, code:%d\n", index, WSAGetLastError());
 				error = true;
 				break;
-			}
-			if (ret == 0) {
+			} else if (ret == 0) {
 				printf("Thread %d: client has closed the connection.\n", index);
 				break;
+			} else if (ret != SOCKET_ERROR) {
+				nLeft -= ret;
+				ptr += ret;
 			}
-			nLeft -= ret;
-			ptr += ret;
 		}
 		if (ret == 0 || error) {
 			break;
 		}
 		buffer[len] = '\0';
 
-		printf("Thread %d: received %d bytes: %s\n", index, len, buffer);
 		try {
 			handleDataInput(index, buffer);
 		} catch (std::exception &e) {
@@ -198,7 +197,6 @@ void Server::connectToClient(int index) noexcept {
 	clients[index].status = ConnectStatus::DISCONNECTED;
 	closesocket(sServer);
 	printf("Thread %d: connection closed.\n", index);
-	return;
 }
 
 void Server::handleDataInput(int index, const char *input) {
@@ -206,7 +204,8 @@ void Server::handleDataInput(int index, const char *input) {
 	int len;
 	PackageType type;
 	void *field;
-	Package::deserialize(type, field, input);
+	len = Package::deserialize(type, field, input);
+	printf("Thread %d: received %d bytes, type: %d\n", index, len, type);
 	switch (type) {
 		case (PackageType::STRING): {
 			std::string command = (char *) field;
@@ -234,14 +233,18 @@ void Server::handleDataInput(int index, const char *input) {
 			} else if (clients[request.to].status != ConnectStatus::CONNECTED) {
 				len = Package::serialize(PackageType::STRING, "Client disconnected.\0", data);
 			} else {
-				int ret = send(clients[request.to].socket, input, strlen(input), 0);
+				len = Package::serialize(PackageType::FORWARD, &request, data);
+				int ret = send(clients[request.to].socket, data, len, 0);
 				if (ret == SOCKET_ERROR) {
 					std::string err = "Send to client " + std::to_string(request.to) + " failed. Reason:" +
 					                  std::to_string(WSAGetLastError());
 					len = Package::serialize(PackageType::STRING, err.c_str(), data);
+					printf("Thread %d: forward to client %d failed. Reason:%d\n", index, request.to,
+					       WSAGetLastError());
 				} else {
 					std::string msg = "Sent to client " + std::to_string(request.to) + " successfully.";
 					len = Package::serialize(PackageType::STRING, msg.c_str(), data);
+					printf("Thread %d: forward to client %d successfully.\n", index, request.to);
 				}
 			}
 			break;

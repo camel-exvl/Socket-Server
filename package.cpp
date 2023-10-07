@@ -36,7 +36,7 @@ int Package::serialize(const PackageType &type, const void *field, char *buffer,
 
 int Package::deserialize(PackageType &type, void *&field, const char *&buffer) noexcept {
 	int len = *(int *) buffer - sizeof(int) - sizeof(PackageType);
-	if (len <= 0) {
+	if (len < 0) {
 		type = PackageType::INVALID;
 		field = (void *) "Invalid buffer length.";
 		return -1;
@@ -87,7 +87,7 @@ int Package::serialize(const time_t &field, char *buffer, int maxLen) {
 		throw std::runtime_error("Buffer space not enough.");
 	}
 	memcpy(buffer, &field, sizeof(time_t));
-	return sizeof(PackageType);
+	return sizeof(time_t);
 }
 
 int Package::deserialize(time_t *&field, const char *&buffer, int len) {
@@ -176,8 +176,8 @@ int Package::deserialize(std::vector<Client> *&field, const char *&buffer, int l
 }
 
 int Package::serialize(const ForwardRequest &field, char *buffer, int maxLen) {
-	int len = sizeof(int);
 	memcpy(buffer, &field.to, sizeof(int));
+	int len = sizeof(int);
 	memcpy(buffer + len, &field.from, sizeof(int));
 	len += sizeof(int);
 	try {
@@ -189,11 +189,8 @@ int Package::serialize(const ForwardRequest &field, char *buffer, int maxLen) {
 	}
 	memcpy(buffer + len, &field.sender_port, sizeof(int));
 	len += sizeof(int);
-	try {
-		len += serialize(PackageType::STRING, field.data, buffer + len, maxLen - len);
-	} catch (std::exception &e) {
-		throw std::runtime_error(e.what());
-	}
+	memcpy(buffer + len, field.data, *(int *) (field.data));
+	len += *(int *) (field.data);
 	return len;
 }
 
@@ -212,6 +209,7 @@ int Package::deserialize(ForwardRequest *&field, const char *&buffer, int len) {
 	ptr += addrLen;
 	memcpy(&field->sender_port, ptr, sizeof(int));
 	ptr += sizeof(int);
-	memcpy(field->data, ptr, len - (ptr - buffer));
+	field->data = new char[*(int *) ptr];
+	memcpy(field->data, ptr, *(int *) ptr);
 	return len;
 }
