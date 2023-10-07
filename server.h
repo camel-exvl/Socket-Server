@@ -24,6 +24,7 @@ private:
 	SOCKET sListen{};    //侦听套接字
 	std::vector<Client> clients;
 	static bool isRunning;
+	static int connectedNum;
 };
 
 #endif //LAB5_SERVER_H

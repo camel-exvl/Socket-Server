@@ -1,6 +1,7 @@
 #include "Server.h"
 
 bool Server::isRunning = true;
+int Server::connectedNum = 0;
 
 int main() {
 	try {
@@ -39,6 +40,10 @@ Server::Server() {
 }
 
 Server::~Server() {
+	// wait for all threads to exit
+	while (connectedNum > 0) {
+		Sleep(100);
+	}
 	printf("Server is shutting down.\n");
 	closesocket(sListen);//关闭套接字
 	WSACleanup();
@@ -126,6 +131,7 @@ void Server::connectToClient(int index) noexcept {
 	auto curClient = clients[index];
 	auto &sServer = curClient.socket;
 	printf("Thread %d started.\n", curClient.index);
+	Server::connectedNum++;
 
 	// send hello
 	char helloData[MAXBUFLEN];
@@ -134,6 +140,7 @@ void Server::connectToClient(int index) noexcept {
 	if (ret == SOCKET_ERROR) {
 		printf("Thread %d: send() failed, code:%d\n", index, WSAGetLastError());
 		clients[index].status = ConnectStatus::DISCONNECTED;
+		Server::connectedNum--;
 		closesocket(sServer);
 		return;
 	}
@@ -148,19 +155,21 @@ void Server::connectToClient(int index) noexcept {
 		char *ptr = buffer;
 		while (nLeft > 0) {
 			ret = recv(sServer, ptr, nLeft, 0);
-			if (ret == SOCKET_ERROR && WSAGetLastError() != WSAEWOULDBLOCK) {
-				printf("Thread %d: recv() failed, code:%d\n", index, WSAGetLastError());
-				error = true;
+			if (!isRunning || ret == 0) {
+				printf("Thread %d: recv() failed, connection has been closed.\n", index);
 				break;
-			} else if (ret == 0) {
-				printf("Thread %d: client has closed the connection.\n", index);
-				break;
-			} else if (ret != SOCKET_ERROR) {
+			} else if (ret == SOCKET_ERROR) {
+				if (WSAGetLastError() != WSAEWOULDBLOCK) {
+					printf("Thread %d: recv() failed, code:%d\n", index, WSAGetLastError());
+					error = true;
+					break;
+				}
+			} else {
 				nLeft -= ret;
 				ptr += ret;
 			}
 		}
-		if (ret == 0 || error) {
+		if (!isRunning || ret == 0 || error) {
 			break;
 		}
 		int len = *(int *) buffer;
@@ -170,19 +179,21 @@ void Server::connectToClient(int index) noexcept {
 		ptr = buffer + sizeof(int);
 		while (nLeft > 0) {
 			ret = recv(sServer, ptr, nLeft, 0);
-			if (ret == SOCKET_ERROR && WSAGetLastError() != WSAEWOULDBLOCK) {
-				printf("Thread %d: recv() failed, code:%d\n", index, WSAGetLastError());
-				error = true;
+			if (!isRunning || ret == 0) {
+				printf("Thread %d: recv() failed, connection has been closed.\n", index);
 				break;
-			} else if (ret == 0) {
-				printf("Thread %d: client has closed the connection.\n", index);
-				break;
-			} else if (ret != SOCKET_ERROR) {
+			} else if (ret == SOCKET_ERROR) {
+				if (WSAGetLastError() != WSAEWOULDBLOCK) {
+					printf("Thread %d: recv() failed, code:%d\n", index, WSAGetLastError());
+					error = true;
+					break;
+				}
+			} else {
 				nLeft -= ret;
 				ptr += ret;
 			}
 		}
-		if (ret == 0 || error) {
+		if (!isRunning || ret == 0 || error) {
 			break;
 		}
 		buffer[len] = '\0';
@@ -195,6 +206,7 @@ void Server::connectToClient(int index) noexcept {
 		}
 	}
 	clients[index].status = ConnectStatus::DISCONNECTED;
+	Server::connectedNum--;
 	closesocket(sServer);
 	printf("Thread %d: connection closed.\n", index);
 }

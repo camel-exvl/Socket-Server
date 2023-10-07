@@ -59,22 +59,17 @@ int main() {
 	}
 
 	receive();
-	Sleep(1000);
 	char data[MAXBUFLEN];
 	int len = Package::serialize(PackageType::STRING, "date", data);
 	sendToServer(data, len);
-	Sleep(1000);
 	receive();
-	Sleep(1000);
 	len = Package::serialize(PackageType::STRING, "hostname", data);
 	sendToServer(data, len);
 	receive();
-	Sleep(1000);
 	len = Package::serialize(PackageType::STRING, "client-list", data);
 	sendToServer(data, len);
 	receive();
-	Sleep(1000);
-	if (clients.size() > 1) {
+	if (clients.size() > 10) {
 		ForwardRequest request;
 		request.to = clients[0].index;
 		request.from = 0;
@@ -87,11 +82,14 @@ int main() {
 		sendToServer(data, len);
 		receive();
 	} else {
-		receive();
+		for (;;) {
+			receive();
+		}
 	}
 
 	closesocket(sClient);//关闭套接字
 	WSACleanup();
+	system("pause");
 }
 
 void sendToServer(char *data, int len) {
