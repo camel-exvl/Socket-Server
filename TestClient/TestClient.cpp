@@ -62,14 +62,14 @@ int main() {
 	Sleep(1000);
 	char data[MAXBUFLEN];
 	int len = Package::serialize(PackageType::STRING, "date", data);
-//	sendToServer(data, len);
-//	Sleep(1000);
-//	receive();
-//	Sleep(1000);
-//	len = Package::serialize(PackageType::STRING, "hostname", data);
-//	sendToServer(data, len);
-//	receive();
-//	Sleep(1000);
+	sendToServer(data, len);
+	Sleep(1000);
+	receive();
+	Sleep(1000);
+	len = Package::serialize(PackageType::STRING, "hostname", data);
+	sendToServer(data, len);
+	receive();
+	Sleep(1000);
 	len = Package::serialize(PackageType::STRING, "client-list", data);
 	sendToServer(data, len);
 	receive();
@@ -77,6 +77,9 @@ int main() {
 	if (clients.size() > 1) {
 		ForwardRequest request;
 		request.to = clients[0].index;
+		request.from = 0;
+		request.sender_addr = "";
+		request.sender_port = 0;
 		request.data = new char[MAXBUFLEN];
 		Package::serialize(PackageType::STRING, "hello from another client", request.data);
 		len = Package::serialize(PackageType::FORWARD, &request, data);
