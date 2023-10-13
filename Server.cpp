@@ -217,10 +217,10 @@ void Server::handleDataInput(int index, const char *input) {
 	PackageType type;
 	void *field;
 	len = Package::deserialize(type, field, input);
-	printf("Thread %d: received %d bytes, type: %d\n", index, len, type);
 	switch (type) {
 		case (PackageType::STRING): {
 			std::string command = (char *) field;
+			printf("Thread %d: received %d bytes, type: STRING, content: %s\n", index, len, command.c_str());
 			if (command == "date") {
 				time_t t = time(nullptr);
 				len = Package::serialize(PackageType::TIME, &t, data);
@@ -237,6 +237,7 @@ void Server::handleDataInput(int index, const char *input) {
 		}
 		case (PackageType::FORWARD): {
 			ForwardRequest request = *(ForwardRequest *) field;
+			printf("Thread %d: received %d bytes, type: FORWARD, to: %d\n", index, len, request.to);
 			request.from = index;
 			request.sender_addr = clients[index].addr;
 			request.sender_port = clients[index].port;
@@ -262,6 +263,7 @@ void Server::handleDataInput(int index, const char *input) {
 			break;
 		}
 		default: {
+			printf("Thread %d: received %d bytes, type: %d. Error.\n", index, len, type);
 			if (type == PackageType::INVALID) {
 				len = Package::serialize(PackageType::STRING, (char *) field, data);
 			} else {

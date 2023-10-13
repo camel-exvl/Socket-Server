@@ -60,7 +60,8 @@ int main() {
 
 	receive();
 	char data[MAXBUFLEN];
-	int len = Package::serialize(PackageType::STRING, "date", data);
+	int len;
+	len = Package::serialize(PackageType::STRING, "date", data);
 	sendToServer(data, len);
 	receive();
 	len = Package::serialize(PackageType::STRING, "hostname", data);
@@ -69,7 +70,7 @@ int main() {
 	len = Package::serialize(PackageType::STRING, "client-list", data);
 	sendToServer(data, len);
 	receive();
-	if (clients.size() > 10) {
+	if (clients.size() > 1) {
 		ForwardRequest request;
 		request.to = clients[0].index;
 		request.from = 0;
@@ -86,7 +87,7 @@ int main() {
 			receive();
 		}
 	}
-
+	Sleep(10000);
 	closesocket(sClient);//关闭套接字
 	WSACleanup();
 	system("pause");
